@@ -1,0 +1,36 @@
+chmod u=rwx,g=rwx,o=w "Лабораторная работа №1!"
+chmod u=w,g=,o= "Якушев Павел Алексеевич"
+ls -al
+
+touch "Text @1"
+touch "Text $2"
+touch "Text #3"
+
+echo -e "Птица говорун отличается умом и сообразительностью! \nОтличается умом, отличается сообразительностью..." > "Text @1"
+
+cp "Text @1" "Text \$2"
+
+mv "Text \$2" "Лабораторная работа №1!"
+
+chmod +rwx "Якушев Павел Алексеевич"
+cp "Text @1" "Якушев Павел Алексеевич"
+
+gzip "Text @1"
+gzip "Text #3"
+
+tar -cf 'MyAchiv' Text\ \@1.gz Text\ \#3.gz
+tar -xf MyAchiv
+
+gzip -d Text\ @1
+gzip -d Text\ #3
+
+head -n 1 'Text @1' > 'Text #3'
+echo -e "\nБудь осторожен! Преступник вооружен!" >> Text\ #3
+
+tac "Якушев Павел Алексеевич"/'Text @1' >> "Якушев Павел Алексеевич"/"Result_one"
+
+mv "Якушев Павел Алексеевич"/Result_one "Якушев Павел Алексеевич"/Result_two
+
+cp 'Якушев Павел Алексеевич'/'Text @1' 'Лабораторная работа №1!'/'Result_3'
+
+cat /proc/cpuinfo >> 'Лабораторная работа №1!'/'Result_3'
