@@ -1,4 +1,4 @@
-format ELF64
+format ELF
 public _start
 msg db "Yakushev", 0xA, "Pavel", 0xA, "Alekseevich", 0xA, 0
 
@@ -14,4 +14,3 @@ _start:
     mov rax, 1
     mov rbx, 0
     int 0x80
-
