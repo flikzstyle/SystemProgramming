@@ -3,8 +3,8 @@ public _start
 public exit
 
 section '.bss' writable
-sym db '+'
-M dq 6
+sym db '|'
+M dq 5
 K dq 11
 newline db 10
 
