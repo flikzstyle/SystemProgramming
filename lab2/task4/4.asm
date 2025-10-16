@@ -3,7 +3,7 @@ public _start
 public exit
 
 section '.bss' writable
-    N dq 5277616985
+    N dq 2251689842
     res dq 0
     newline db 10
     place db 1

@@ -3,7 +3,7 @@ public _start
 public exit
 
 section '.bss' writable
-my db 0xA, "S=QLQGaThNTMUkUIfNqqbSWtpNV"
+my db 0xA, "S=TLsajttdOcdbmkffYtXGAHyFWBQCrJEvqHTdoFcF"
 newline db 10, 0
 
 section '.text' executable

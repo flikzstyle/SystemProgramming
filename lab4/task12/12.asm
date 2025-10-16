@@ -1,47 +1,46 @@
 format ELF64
 public _start
 
-include '/home/egorp/cpp/System-programming/help.asm'
-include '/home/egorp/cpp/System-programming/func.asm'
+include '../help.asm'
+include '../func.asm'
 
 section '.data' writable
-    truemsg db 'Number is in non-decreasing order', 10, 0
-    falsemsg db 'Number is not in non-decreasing order', 10, 0
+    msg_enter db 'Введите число: ', 0
+    msg_true db 'Цифры в неубывающем порядке', 10, 0
+    msg_false db 'Цифры убывающем порядке', 10, 0
 
 section '.bss' writable
     buffer rb 256
-    prev dq 0
 
 section '.text' executable
 _start:
+    mov rsi, msg_enter
+    call print_str
+
     mov rsi, buffer
     call input_keyboard
-
     call atoi
 
-    mov rcx, 10
+    mov rbx, 10     ; проверяю порядок цифр , тут справа налево
+    mov rcx, 10     ; предыдущая цифра (начинаем с максимальной)
+
+.check_loop:
     xor rdx, rdx
-    div rcx
-    mov [prev], rdx
+    div rbx         ; rax = число/10, rdx = последняя цифра
 
-    .digit_loop:
-        xor rdx, rdx
-        div rcx
+    cmp rdx, rcx
+    jg .false       ; если текущая цифра > предыдущей - false
 
-        cmp rdx, [prev]
-        jg false
+    mov rcx, rdx    ; сохраняю как предыдущую
+    test rax, rax
+    jnz .check_loop
 
-        mov [prev], rdx
+    mov rsi, msg_true
+    jmp .print_result
 
-        test rax, rax
-        jnz .digit_loop
-    mov rsi, truemsg
-    jmp final
+.false:
+    mov rsi, msg_false
 
-    false:
-        mov rsi, falsemsg
-
-
-    final:
-        call print_str
-        call exit
+.print_result:
+    call print_str
+    call exit

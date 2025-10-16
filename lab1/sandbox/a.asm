@@ -12,3 +12,4 @@ _start:
     mov rax, 1
     mov rbx, 0
     int 0x80
+w
