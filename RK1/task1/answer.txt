@@ -1,0 +1,14 @@
+mkdir sandbox
+cd sandbox
+
+touch Task_1
+touch Task_2
+touch Task_3
+
+ls -l --block-size=K Task_1 Task_2 Task_3
+
+mv Task_1 Task_first
+mv Task_2 Task_second
+mv Task_3 Task_third
+
+cat Task_first >> Task_third
