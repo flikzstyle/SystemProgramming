@@ -1,8 +1,8 @@
 format ELF64
 public _start
 
-include '../help.asm'
-include '../func.asm'
+include '../../help.asm'
+include '../../func.asm'
 
 section '.data' writable
     msg_enter db 'Введите число: ', 0
