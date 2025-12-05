@@ -1,0 +1,3 @@
+fasm sine.asm sine.o
+ld -o sine sine.o -dynamic-linker /lib64/ld-linux-x86-64.so.2 -lncurses -lm -lc
+./sine
