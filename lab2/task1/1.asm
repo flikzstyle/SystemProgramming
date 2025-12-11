@@ -4,12 +4,13 @@ public exit
 
 section '.bss' writable
 my db 0xA, "S=TLsajttdOcdbmkffYtXGAHyFWBQCrJEvqHTdoFcF"
+len = $ -my
 newline db 10, 0
 
 section '.text' executable
 _start:
     mov rcx, my
-    add rcx, 27
+    add rcx, len
     .iter:
         mov rax, 4
         mov rbx, 1

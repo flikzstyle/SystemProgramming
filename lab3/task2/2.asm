@@ -1,10 +1,8 @@
 format ELF64
 public _start
 
-section '.data'
+section '.data' writable
     newline db 10
-
-section '.bss' writable
     buf db 0
     a dq 0
     b dq 0

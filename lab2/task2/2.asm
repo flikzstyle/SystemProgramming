@@ -4,8 +4,8 @@ public exit
 
 section '.bss' writable
 sym db '|'
-M dq 5
-K dq 11
+M dq 20
+K dq 3
 newline db 10
 
 section '.text' executable

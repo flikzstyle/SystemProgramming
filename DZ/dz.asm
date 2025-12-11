@@ -1,8 +1,5 @@
 format elf64
 
-extrn malloc
-extrn free
-
 public queue_create
 public queue_destroy
 public enqueue
@@ -21,57 +18,83 @@ section '.data' writable
 section '.bss' writable
     random_number rq 1
     queue_struct_size equ 40 
+    
+    heap_start rq 1
+    initial_brk rq 1
 
+section '.text' executable
+
+; queue_create(capacity) -> queue_pointer
+; rdi: capacity
 queue_create:
-    ; Выделяем память под саму структуру очереди
-    push rdi
-    mov rdi, queue_struct_size
-    call malloc
-    pop rsi ; rsi = capacity
+    push rbx
+    push r12
+    push rdi          ; Сохраняем capacity
+
+    ; 1. Получаем текущий адрес конца кучи (program break)
+    mov rax, 12       ; sys_brk
+    xor rdi, rdi      ; 0
+    syscall
+    
+    ; Сохраняем указатель на начало выделяемого блока
+    mov r12, rax      
+    
+    ; Если initial_brk еще не установлен (равен 0), сохраняем его
+    mov rbx, [initial_brk]
+    test rbx, rbx
+    jnz .calc_size
+    mov [initial_brk], rax ; Запоминаем точку старта, чтобы потом сделать free
+    
+.calc_size:
+    ; 2. Вычисляем требуемый размер
+    ; Нам нужно 40 байт под структуру + (capacity * 8) под буфер
+    pop rdi           ; Восстанавливаем capacity из стека в rdi (текущее значение)
+    push rdi          ; И кладем обратно, так как оно нужно для записи в структуру
+    
+    shl rdi, 3        ; rdi = capacity * 8 (размер буфера)
+    add rdi, 40       ; добавляем размер самой структуры (40 байт)
+    
+    ; 3. Выделяем память (увеличиваем brk)
+    add rdi, r12      ; rdi = новый адрес конца кучи (старый + размер)
+    mov rax, 12       ; sys_brk
+    syscall
+    
+    ; Теперь r12 указывает на начало нашей памяти.
+    ; Структура лежит по адресу [r12]
+    ; Буфер будет лежать по адресу [r12 + 40]
+    
+    ; 4. Инициализируем поля структуры очереди
+    pop rsi           ; rsi = capacity
     
     xor rcx, rcx
-    mov [rax], rcx   ; head = 0
-    mov [rax+8], rcx     ; tail = 0
-    mov [rax+16], rcx    ; size = 0
-    mov [rax+24], rsi        ; capacity = rsi
+    mov [r12], rcx       ; head = 0
+    mov [r12+8], rcx     ; tail = 0
+    mov [r12+16], rcx    ; size = 0
+    mov [r12+24], rsi    ; capacity = rsi
     
-    ; Выделяем память под буфер элементов очереди
-    mov rdi, rsi             ; rdi = capacity
-    shl rdi, 3               ; rdi = capacity * 8 (размер)
-
-    mov rsi, rdi             ; Копируем размер из RDI в RSI
-    xor rdi, rdi             ; Обнуляем RDI для адреса (addr = 0)
-
-    push rax ; Сохраняем указатель на структуру
-
-    mov rdx, 0x3
-    mov r10,0x22
-    mov r8, -1
-    mov r9, 0
-    mov rax, 9
-    syscall
-        
-    pop rdi                  ; rdi = указатель на структуру
-    mov [rdi+32], rax        ; Сохраняем указатель на буфер
+    ; Устанавливаем указатель на буфер
+    mov rax, r12
+    add rax, 40          ; Смещаемся на размер структуры
+    mov [r12+32], rax    ; buffer_pointer = адрес сразу за структурой
     
-    mov rax, rdi             ; Возвращаем указатель на структуру
+    mov rax, r12         ; Возвращаем указатель на структуру
+    
+    pop r12
+    pop rbx
     ret
 
+; queue_destroy(queue_pointer)
 ; rdi: queue_pointer
 queue_destroy:
-    mov rsi, [rdi+24]        ; rsi = capacity
-    shl rsi, 3               ; capacity * 8
-    mov rdx, rdi             ; Сохраняем указатель на структуру
-    mov rdi, [rdi+32]        ; rdi = buffer_pointer
-    mov rax, 11              ; syscall munmap
+    mov rax, 12             ; sys_brk
+    mov rdi, [initial_brk]  ; Возвращаем break point в начало
     syscall
     
-    mov rdi, rdx             ; rdi = указатель на структуру
-    call free                ; Освобождаем память структуры
+    mov qword [initial_brk], 0
+    
     ret
 
-
-; enqueue(queue_pointer, value) -> rax: 1 (success) or 0 (full) - добавляет элемент в конец очереди.
+; enqueue(queue_pointer, value) -> rax: 1 (success) or 0 (full)
 ; rdi: queue_pointer, rsi: value
 enqueue:
     mov r8, [rdi+16]         ; r8 = size
@@ -99,7 +122,7 @@ enqueue:
     mov rax, 0
     ret
 
-; dequeue(queue_pointer, value_pointer) -> rax: 1 (success) or 0 (empty) - извлекает элемент из начала очереди.
+; dequeue(queue_pointer, value_pointer) -> rax: 1 (success) or 0 (empty)
 ; rdi: queue_pointer, rsi: value_pointer
 dequeue:
     mov r8, [rdi+16]         ; r8 = size
@@ -130,36 +153,36 @@ dequeue:
 
 ; ranint() -> rax: random number
 ranint:
-	push rdi
-	push rsi
-	push rdx
-	push r8
-	
-	mov rdi, f
-    mov rax, 2 
+    push rdi
+    push rsi
+    push rdx
+    push r8
+    
+    mov rdi, f
+    mov rax, 2       ; sys_open
     mov rsi, 0
     syscall 
 
-    mov r8, rax
+    mov r8, rax      ; fd
 
-    mov rax, 0 
+    mov rax, 0       ; sys_read
     mov rdi, r8
     mov rsi, random_number
     mov rdx, 8
     syscall
     
-    mov rax, 3
+    mov rax, 3       ; sys_close
     mov rdi, r8
     syscall
     
-	mov rax, [random_number]
-	pop r8
-	pop rdx
-	pop rsi
-	pop rdi
-	ret
+    mov rax, [random_number]
+    pop r8
+    pop rdx
+    pop rsi
+    pop rdi
+    ret
 
-; queue_fill_random(queue_pointer) - заполняет очередь случайными числами до фулла
+; queue_fill_random(queue_pointer)
 ; rdi: queue_pointer
 queue_fill_random:
     .loop:
@@ -247,7 +270,6 @@ queue_count_ending_in_1:
     ret
 
 ; queue_get_odd_numbers(queue_pointer, output_array_pointer) -> rax: count
-; Находит все нечетные числа и копирует их в предоставленный массив.
 ; rdi: queue_pointer, rsi: output_array_pointer
 queue_get_odd_numbers:
     xor r13, r13             ; r13 = счетчик найденных нечетных чисел = 0
@@ -266,25 +288,23 @@ queue_get_odd_numbers:
     
     mov r12, [r10 + r9 * 8]  ; r12 = текущий элемент buffer[head]
     test r12, 1              ; Проверяем, является ли число нечетным
-    jz .not_odd              ; Если четное (zero flag = 1), переходим к след. элементу
+    jz .not_odd              ; Если четное, пропускаем
 
     ; Число нечетное, копируем его в выходной массив
     mov [rsi + r13 * 8], r12
-    inc r13                  ; Увеличиваем счетчик нечетных чисел
+    inc r13                  ; Увеличиваем счетчик
 
 .not_odd:
     inc r9                   ; Двигаем голову очереди вперед
     cmp r9, r11
     jne .no_wrap
-    xor r9, r9               ; Возвращаемся в начало буфера, если дошли до конца
+    xor r9, r9               ; Wrap around
 .no_wrap:
     inc rcx
     jmp .loop
 .done:
-    mov rax, r13             ; Возвращаем количество найденных нечетных чисел
+    mov rax, r13             ; Возвращаем count
     ret
     
 free_memory:
-	mov rax, 11              ; syscall munmap
-	syscall
-	ret
+    ret
