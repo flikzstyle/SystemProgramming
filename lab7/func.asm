@@ -1,48 +1,62 @@
-; func.asm
+section '.text' executable
+
+public print_string
+public print_newline
+public print_number
+public input_keyboard
+public exit
+
+; print_string: Вывод строки
+; RSI - адрес строки
 print_string:
-    ; rsi - адрес строки (заканчивается нулем)
     push rax
     push rdi
     push rdx
     push rcx
-    
+    push rsi
+
     xor rdx, rdx
     mov rcx, rsi
 .len_loop:
     cmp byte [rcx], 0
-    je .print
+    je .do_print
     inc rcx
     inc rdx
     jmp .len_loop
-.print:
-    mov rax, 1      ; sys_write
-    mov rdi, 1      ; stdout
+
+.do_print:
+    mov rax, 1
+    mov rdi, 1
     syscall
-    
+
+    pop rsi
     pop rcx
     pop rdx
     pop rdi
     pop rax
     ret
 
+; print_newline: Перевод строки
 print_newline:
     push rax
     push rdi
     push rsi
     push rdx
+    
     mov rax, 1
     mov rdi, 1
-    mov rsi, newline_char
+    mov rsi, newline_sym
     mov rdx, 1
     syscall
+
     pop rdx
     pop rsi
     pop rdi
     pop rax
     ret
 
+; print_number: Вывод числа из RAX
 print_number:
-    ; rax - положительное число для вывода
     push rax
     push rbx
     push rcx
@@ -50,33 +64,39 @@ print_number:
     push rsi
     push rdi
     push rbp
+
+    mov rbp, rsp
+    sub rsp, 32         ; Буфер
     
-    mov rcx, 0
     mov rbx, 10
-    sub rsp, 32     ; буфер на стеке
-    mov rdi, rsp
+    mov rcx, 0
+    lea rsi, [rbp - 1]  ; Начало буфера (растем вниз)
+
+    test rax, rax
+    jnz .convert_loop
     
-.loop:
+    mov byte [rsi], '0'
+    mov rdx, 1
+    jmp .write
+
+.convert_loop:
     xor rdx, rdx
-    div rbx
-    add rdx, '0'
-    mov [rdi+rcx], dl
+    div rbx             ; RAX / 10
+    add dl, '0'
+    mov [rsi], dl
+    dec rsi
     inc rcx
     test rax, rax
-    jnz .loop
+    jnz .convert_loop
     
-.print_loop:
-    dec rcx
-    lea rsi, [rdi+rcx]
+    inc rsi             ; Корректируем указатель на начало строки
+    mov rdx, rcx        ; Длина
+
+.write:
     mov rax, 1
-    push rcx
-    mov rdi, 1      ; stdout
-    mov rdx, 1
+    mov rdi, 1
     syscall
-    pop rcx
-    cmp rcx, 0
-    jg .print_loop
-    
+
     add rsp, 32
     pop rbp
     pop rdi
@@ -87,28 +107,30 @@ print_number:
     pop rax
     ret
 
+; input_keyboard: Ввод
+; RSI - буфер
 input_keyboard:
-    ; rsi - буфер
-    ; Читаем до 255 байт
     push rax
     push rdi
     push rdx
-    
-    mov rax, 0      ; sys_read
-    mov rdi, 0      ; stdin
+    push rcx
+
+    mov rax, 0
+    mov rdi, 0
     mov rdx, 255
     syscall
+
+    cmp rax, 1
+    jl .done
     
-    ; Заменяем \n на 0
-    cmp rax, 0
-    jle .done
     mov rcx, rax
     dec rcx
-    cmp byte [rsi+rcx], 10
+    cmp byte [rsi + rcx], 10
     jne .done
-    mov byte [rsi+rcx], 0
-    
+    mov byte [rsi + rcx], 0
+
 .done:
+    pop rcx
     pop rdx
     pop rdi
     pop rax
@@ -119,5 +141,5 @@ exit:
     xor rdi, rdi
     syscall
 
-section '.data'
-    newline_char db 10
+section '.data' writable
+    newline_sym db 10

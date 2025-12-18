@@ -1,7 +1,6 @@
 format ELF64
 public _start
 
-; --- Внешние функции ---
 extrn initscr
 extrn start_color
 extrn init_pair
@@ -27,7 +26,6 @@ extrn setrnd
 extrn get_random
 extrn usleep
 
-; --- Секция неинициализированных данных ---
 section '.bss' writable
     max_x           dq 1
     max_y           dq 1
@@ -43,17 +41,15 @@ section '.bss' writable
     delay           dq ?
     speed_mode      dq 0
 
-; --- Секция кода ---
 section '.text' executable
 _start:
 .initialize:
     call    initscr
     
-    ; Включаем необходимые режимы ncurses
     call    cbreak
     call    noecho
     
-    ; Включаем обработку специальных клавиш
+    ; обработка специальных клавиш
     mov     rdi, [stdscr]
     mov     rsi, 1
     call    keypad
@@ -68,7 +64,7 @@ _start:
     dec     rax
     mov     [max_y], rax
     
-    ; Инициализация границ спирали
+    ; обозначение границ спирали
     xor     rdx, rdx
     mov     rax, [max_y]
     mov     rbx, 2
@@ -101,22 +97,21 @@ _start:
     or      rax, 0x100
     mov     [palette], rax
     
-    ; Начальная скорость - стандартная
+    ; начальная скорость - стандартная
     mov     qword [delay], 80000
     mov     qword [speed_mode], 0
 
     call    refresh
     
-    ; Начальная позиция - центр
+    ; начальная позиция - центр
     mov     rax, [min_border_y]
     mov     [pos_y], rax
     mov     rax, [min_border_x]
     mov     [pos_x], rax
     
-    ; НАЧИНАЕМ СРАЗУ ДВИЖЕНИЕ ВПРАВО
     mov     qword [flag], 2  ; 2 = right
     
-    ; Сразу рисуем первую точку
+    ; отрисовка первой точки
     mov     rdi, [pos_y]
     mov     rsi, [pos_x]
     call    move
@@ -126,18 +121,17 @@ _start:
     
     jmp     .mloop
 
-; --- Главный цикл программы ---
 .mloop:
-    ; Задержка в зависимости от режима скорости
+    ; задержка в зависимости от режима скорости
     mov     rdi, [delay]
     call    usleep
 
-    ; НЕБЛОКИРУЮЩИЙ ВВОД - КЛЮЧЕВОЙ МОМЕНТ!
+    ; ввод не блокируется
     mov     rdi, 0
     call    timeout
     call    getch
 
-    ; Проверяем ввод (должно быть сравнение с БЕЗЗНАКОВЫМ значением)
+    ; проверка ввода 
     cmp     rax, -1         ; -1 означает отсутствие ввода
     je      .no_input
     
@@ -147,7 +141,7 @@ _start:
     je      .change_speed
 
 .no_input:
-    ; Основная логика движения
+    ; основная логика движения
     cmp     [flag], 1
     je      .down
     cmp     [flag], 2
@@ -158,7 +152,7 @@ _start:
     je      .left
 
 .after_move:
-    ; Устанавливаем позицию и рисуем
+    ; устанавливаем позицию и рисуем
     mov     rdi, [pos_y]
     mov     rsi, [pos_x]
     call    move
@@ -166,10 +160,10 @@ _start:
     call    addch
     call    refresh
 
-    ; Проверка границ
+    ; проверка границ
     jmp     .check_borders
 
-; --- Проверка границ для смены направления ---
+; проверка границ для смены направления
 .check_borders:
     cmp     [flag], 2      ; right -> check if hit right border
     je      .check_right
@@ -205,7 +199,7 @@ _start:
     jle     .set_right
     jmp     .check_screen
 
-; --- Проверка выхода за пределы экрана ---
+; проверка выхода за пределы экрана
 .check_screen:
     mov     rax, [max_y]
     cmp     [pos_y], rax
@@ -219,9 +213,9 @@ _start:
     jle     .reset_and_change_color
     jmp     .mloop
 
-; --- Сброс спирали и смена цвета ---
+; сброс спирали и смена цвета 
 .reset_and_change_color:
-    ; Пересчет границ
+    ; пересчет границ
     xor     rdx, rdx
     mov     rax, [max_y]
     mov     rbx, 2
@@ -240,7 +234,7 @@ _start:
     dec     [min_border_x]
     dec     [min_border_y]
 
-    ; Смена цвета
+    ; смена цвета
     cmp     [color_flag], 0
     je      .white
     jmp     .orange
@@ -261,14 +255,14 @@ _start:
     mov     [palette], rax
 
 .reset_position:
-    ; Сброс позиции и начинаем движение ВПРАВО
+    ; сброс позиции и начало движения вправо
     mov     rax, [min_border_y]
     mov     [pos_y], rax
     mov     rax, [min_border_x]
     mov     [pos_x], rax
     mov     qword [flag], 2  ; начинаем с движения вправо
     
-    ; Сразу рисуем точку в начальной позиции
+    ; сразу рисуем точку в начальной позиции
     mov     rdi, [pos_y]
     mov     rsi, [pos_x]
     call    move
@@ -283,7 +277,7 @@ _start:
     xor     rdi, rdi
     call    exit
 
-; --- Логика смены скорости (4 режима) ---
+; смена скорости
 .change_speed:
     cmp     [speed_mode], 0
     je      .set_fast
@@ -294,30 +288,25 @@ _start:
     jmp     .set_normal
 
 .set_normal:
-    ; Стандартная скорость
     mov     qword [delay], 80000
     mov     qword [speed_mode], 0
     jmp     .mloop
 
 .set_fast:
-    ; Быстрая скорость
     mov     qword [delay], 40000
     mov     qword [speed_mode], 1
     jmp     .mloop
 
 .set_very_fast:
-    ; Очень быстрая скорость
     mov     qword [delay], 15000
     mov     qword [speed_mode], 2
     jmp     .mloop
 
 .set_max_fast:
-    ; Максимальная скорость
     mov     qword [delay], 3000
     mov     qword [speed_mode], 3
     jmp     .mloop
 
-; --- Блоки движения ---
 .down:
     inc     [pos_y]
     jmp     .after_move
@@ -331,14 +320,14 @@ _start:
     dec     [pos_x]
     jmp     .after_move
 
-; --- Смена направления ---
+; Смена направления 
 .set_right:
     mov     qword [flag], 2
     jmp     .mloop
 
 .set_down:
     mov     qword [flag], 1
-    ; Расширяем границы для следующего витка спирали
+    ; расширяем границы для следующего витка спирали
     inc     [max_border_x]
     inc     [max_border_y]
     dec     [min_border_x]
